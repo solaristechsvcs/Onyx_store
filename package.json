@@ -1,0 +1,19 @@
+{
+  "name": "onyx-store",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Onyx Store Wisp/MySQL storefront",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mysql2": "^3.14.0",
+    "helmet": "^8.0.0"
+  }
+}
