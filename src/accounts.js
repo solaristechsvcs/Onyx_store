@@ -1,0 +1,7 @@
+const express=require('express');
+const db=require('./db');
+const {passwordHash,verifyPassword,hash,newToken}=require('./security');
+const router=express.Router();
+router.post('/register',async(req,res,next)=>{try{const {email,password,displayName}=req.body||{};if(typeof email!=='string'||!/^\S+@\S+\.\S+$/.test(email)||email.length>254||typeof password!=='string'||password.length<12||password.length>256||typeof displayName!=='string'||!displayName.trim()||displayName.length>120)return res.status(400).json({error:'Valid email, display name and password (12+ characters) required'});const [r]=await db.query('INSERT INTO users(email,password_hash,display_name) VALUES (?,?,?)',[email.trim().toLowerCase(),passwordHash(password),displayName.trim()]);res.status(201).json({id:r.insertId});}catch(e){if(e.code==='ER_DUP_ENTRY')return res.status(409).json({error:'Email already registered'});next(e)}});
+router.post('/login',async(req,res,next)=>{try{const {email,password}=req.body||{};if(typeof email!=='string'||typeof password!=='string')return res.status(400).json({error:'Invalid credentials'});const [[u]]=await db.query('SELECT id,email,password_hash,role FROM users WHERE email=?',[email.trim().toLowerCase()]);if(!u||!verifyPassword(password,u.password_hash))return res.status(401).json({error:'Invalid credentials'});res.json({message:'Credentials valid; session-based login is not yet implemented',userId:u.id,role:u.role});}catch(e){next(e)}});
+module.exports=router;
