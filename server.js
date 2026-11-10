@@ -15,6 +15,8 @@ const app=express();
 app.disable('x-powered-by');
 app.use(helmet());
 app.use(express.json({limit:'32kb'}));
+app.use((req,res,next)=>{if(['POST','PATCH','PUT','DELETE'].includes(req.method)&&req.headers.cookie){const origin=req.get('origin');const expected=config.server.publicUrl;try{if(!origin||new URL(origin).origin!==new URL(expected).origin)return res.status(403).json({error:'Invalid request origin'});}catch{return res.status(403).json({error:'Invalid request origin'});}}next();});
+app.get('/staff',(req,res)=>res.sendFile(path.join(__dirname,'public','staff.html')));
 app.get('/health',async(_req,res)=>{try{await db.query('SELECT 1');res.json({ok:true,database:'connected'});}catch{res.status(503).json({ok:false,database:'unavailable'});}});
 app.use('/api/store',require('./src/store'));
 app.use('/api/accounts',require('./src/accounts'));
