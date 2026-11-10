@@ -11,6 +11,14 @@ const statements=[
 `CREATE TABLE IF NOT EXISTS api_clients (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(120) NOT NULL,token_hash CHAR(64) NOT NULL UNIQUE,scope ENUM('validate','issue') NOT NULL DEFAULT 'validate',is_active BOOLEAN NOT NULL DEFAULT TRUE,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
 `CREATE TABLE IF NOT EXISTS audit_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,actor VARCHAR(120) NOT NULL,action VARCHAR(120) NOT NULL,entity_id VARCHAR(120) NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
 ];
-async function migrate(){for(const sql of statements)await db.query(sql);}
+async function migrate(){
+for(const sql of statements)await db.query(sql);
+const [cols]=await db.query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users'");
+const names=new Set(cols.map(c=>c.COLUMN_NAME));
+if(!names.has('discord_id'))await db.query('ALTER TABLE users ADD COLUMN discord_id VARCHAR(25) NULL UNIQUE');
+await db.query('ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL');
+await db.query('CREATE TABLE IF NOT EXISTS sessions (token_hash CHAR(64) PRIMARY KEY,user_id BIGINT UNSIGNED NOT NULL,expires_at DATETIME NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)');
+await db.query('CREATE TABLE IF NOT EXISTS oauth_states (state_hash CHAR(64) PRIMARY KEY,expires_at DATETIME NOT NULL)');
+}
 if(require.main===module)migrate().then(()=>{console.log('MySQL schema ready');return db.end()}).catch(e=>{console.error(e);process.exitCode=1;return db.end()});
 module.exports=migrate;
