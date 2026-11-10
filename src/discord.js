@@ -4,17 +4,20 @@ const db=require('./db');
 const config=require('../config');
 const {createSession}=require('./auth');
 const {hash}=require('./security');
+const {cookies}=require('./auth');
 const dc=config.discord||{};
 function callback(){return new URL('/api/accounts/discord/callback',config.server.publicUrl).toString();}
 router.get('/login',async(req,res,next)=>{try{
 if(!dc.clientId||!dc.clientSecret||!config.server.publicUrl)return res.status(503).json({error:'Discord login not configured'});
 const state=crypto.randomBytes(32).toString('base64url');
 await db.query('INSERT INTO oauth_states(state_hash,expires_at) VALUES (?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE))',[hash(state)]);
+res.cookie('onyx_oauth',state,{httpOnly:true,secure:config.session.secureCookies===true,sameSite:'lax',maxAge:600000,path:'/api/accounts/discord'});
 res.redirect('https://discord.com/oauth2/authorize?'+new URLSearchParams({client_id:dc.clientId,redirect_uri:callback(),response_type:'code',scope:'identify email',state}));
 }catch(e){next(e)}});
 router.get('/callback',async(req,res,next)=>{try{
 const {code,state}=req.query;
-if(typeof code!=='string'||typeof state!=='string'||state.length>200)return res.status(400).send('Invalid OAuth response');
+if(typeof code!=='string'||typeof state!=='string'||state.length>200||cookies(req).onyx_oauth!==state)return res.status(400).send('Invalid OAuth response');
+res.clearCookie('onyx_oauth',{path:'/api/accounts/discord'});
 const [removed]=await db.query('DELETE FROM oauth_states WHERE state_hash=? AND expires_at>UTC_TIMESTAMP()',[hash(state)]);
 if(!removed.affectedRows)return res.status(400).send('Invalid or expired OAuth state');
 const response=await fetch('https://discord.com/api/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:dc.clientId,client_secret:dc.clientSecret,grant_type:'authorization_code',code,redirect_uri:callback()}),signal:AbortSignal.timeout(10000)});
