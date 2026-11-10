@@ -18,6 +18,7 @@ app.use(express.json({limit:'32kb'}));
 app.get('/health',async(_req,res)=>{try{await db.query('SELECT 1');res.json({ok:true,database:'connected'});}catch{res.status(503).json({ok:false,database:'unavailable'});}});
 app.use('/api/store',require('./src/store'));
 app.use('/api/accounts',require('./src/accounts'));
+app.use('/api/staff',require('./src/auth').currentUser,require('./src/staff'));
 app.use('/api/v1/licenses',require('./src/licenses'));
 app.get('/',(_req,res)=>res.type('html').send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Onyx Store</title></head><body><main><h1>Onyx Store</h1><p>Store API foundation is running. The customer storefront UI is under development.</p><p><a href="/api/store/products">Browse product API</a></p></main></body></html>'));
 app.use((err,_req,res,_next)=>{console.error(err);res.status(500).json({error:'Internal server error'});});
