@@ -1,49 +1,24 @@
 'use strict';
-const express = require('express');
-const helmet = require('helmet');
-const mysql = require('mysql2/promise');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const configPath = path.join(__dirname, 'config.js');
-if (!fs.existsSync(configPath)) {
-  console.error('Missing config.js. Copy config.example.js to config.js and configure your Wisp port and MySQL credentials.');
-  process.exit(1);
-}
-const config = require(configPath);
-const port = Number(config.server?.port);
-if (!Number.isInteger(port) || port < 1 || port > 65535) {
-  throw new Error('config.server.port must be a valid TCP port (1-65535)');
-}
-const host = config.server?.host || '0.0.0.0';
-const pool = mysql.createPool({
-  host: config.mysql.host,
-  port: config.mysql.port || 3306,
-  user: config.mysql.user,
-  password: config.mysql.password,
-  database: config.mysql.database,
-  waitForConnections: true,
-  connectionLimit: config.mysql.connectionLimit || 10
-});
-const app = express();
+const express=require('express');
+const helmet=require('helmet');
+const fs=require('node:fs');
+const path=require('node:path');
+const configPath=path.join(__dirname,'config.js');
+if(!fs.existsSync(configPath)){console.error('Missing config.js: copy config.example.js and configure MySQL and Wisp port');process.exit(1);}
+const config=require(configPath);
+const port=Number(config.server?.port);
+if(!Number.isInteger(port)||port<1||port>65535)throw Error('config.server.port must be between 1 and 65535');
+const host=config.server?.host||'0.0.0.0';
+const db=require('./src/db');
+const migrate=require('./src/migrate');
+const app=express();
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(express.json({ limit: '100kb' }));
-app.get('/health', async (_req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ ok: true, database: 'connected' });
-  } catch (_err) {
-    res.status(503).json({ ok: false, database: 'unavailable' });
-  }
-});
-app.get('/', (_req, res) => res.type('html').send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Onyx Store</title></head><body><main><h1>Onyx Store</h1><p>Storefront setup is in progress.</p></main></body></html>'));
-const server = app.listen(port, host, () => console.log(`Onyx Store listening on ${host}:${port}`));
-async function shutdown() {
-  server.close(async () => {
-    await pool.end();
-    process.exit(0);
-  });
-}
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+app.use(express.json({limit:'32kb'}));
+app.get('/health',async(_req,res)=>{try{await db.query('SELECT 1');res.json({ok:true,database:'connected'});}catch{res.status(503).json({ok:false,database:'unavailable'});}});
+app.use('/api/store',require('./src/store'));
+app.use('/api/accounts',require('./src/accounts'));
+app.use('/api/v1/licenses',require('./src/licenses'));
+app.get('/',(_req,res)=>res.type('html').send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Onyx Store</title></head><body><main><h1>Onyx Store</h1><p>Store API foundation is running. The customer storefront UI is under development.</p><p><a href="/api/store/products">Browse product API</a></p></main></body></html>'));
+app.use((err,_req,res,_next)=>{console.error(err);res.status(500).json({error:'Internal server error'});});
+(async()=>{await migrate();const server=app.listen(port,host,()=>console.log('Onyx Store listening on '+host+':'+port));async function shutdown(){server.close(async()=>{await db.end();process.exit(0);});}process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);})().catch(e=>{console.error('Startup failed:',e);process.exit(1);});
