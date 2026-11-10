@@ -13,6 +13,10 @@ module.exports = {
     database: 'onyx_store',
     connectionLimit: 10
   },
+  discord: {
+    clientId: '',
+    clientSecret: ''
+  },
   session: {
     secret: 'REPLACE_WITH_A_LONG_RANDOM_SECRET',
     secureCookies: false
