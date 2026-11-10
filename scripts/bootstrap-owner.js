@@ -1,0 +1,4 @@
+// Run once from the Wisp startup/console with ONYX_OWNER_EMAIL, ONYX_OWNER_PASSWORD and ONYX_OWNER_NAME set.
+const db=require('../src/db');
+const {passwordHash}=require('../src/security');
+(async()=>{const email=process.env.ONYX_OWNER_EMAIL,password=process.env.ONYX_OWNER_PASSWORD,name=process.env.ONYX_OWNER_NAME||'Owner';if(!email||!password||password.length<16)throw Error('Set ONYX_OWNER_EMAIL and ONYX_OWNER_PASSWORD (16+ chars)');const [[count]]=await db.query("SELECT COUNT(*) AS n FROM users WHERE role='owner'");if(count.n)throw Error('Owner already exists');await db.query("INSERT INTO users(email,password_hash,display_name,role) VALUES (?,?,?,'owner')",[email.toLowerCase(),passwordHash(password),name]);console.log('Owner created');})().catch(e=>{console.error(e.message);process.exitCode=1}).finally(()=>db.end());
