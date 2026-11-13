@@ -21,7 +21,7 @@ const createMemoryDB=()=>{
   if(sql.startsWith('SELECT id FROM license_activations'))return [s.activations.filter(a=>n(a.license_id)===n(args[0])&&a.installation_hash===args[1])];
   if(sql.startsWith('INSERT INTO license_activations')){const id=Math.max(0,...s.activations.map(a=>a.id))+1;s.activations.push({id,license_id:args[0],installation_hash:args[1],created_at:new Date().toISOString()});return [{insertId:id}];}
   if(sql.startsWith('DELETE FROM license_activations')){s.activations=s.activations.filter(a=>sql.includes('WHERE id=')?!(n(a.id)===n(args[0])&&n(a.license_id)===n(args[1])):!(n(a.license_id)===n(args[0])&&(!sql.includes('installation_hash')||a.installation_hash===args[1])));return [{affectedRows:1}];}
-  if(sql.startsWith('SELECT o.status FROM orders')){const item=s.items.find(i=>n(i.id)===n(args[0]));return [s.orders.filter(o=>n(o.id)===n(item?.order_id)).map(o=>({status:o.status}))];}
+  if(sql.startsWith('SELECT o.status')){const item=s.items.find(i=>n(i.id)===n(args[0]));return [s.orders.filter(o=>n(o.id)===n(item?.order_id)).map(o=>({status:o.status,payment_mode:o.payment_mode}))];}
   if(sql.startsWith('SELECT id,user_id,status FROM orders'))return [s.orders.filter(o=>n(o.id)===n(args[0]))];
   if(sql.startsWith('SELECT oi.id,oi.product_id'))return [s.items.filter(i=>n(i.order_id)===n(args[0])).map(i=>({...s.products.find(p=>n(p.id)===n(i.product_id)),...i}))];
   if(sql.startsWith('SELECT id,issuance_id FROM licenses')||sql.startsWith("SELECT id FROM licenses WHERE order_item_id"))return [s.licenses.filter(l=>n(l.order_item_id)===n(args[0])&&l.origin==='store'&&(!sql.includes("status<>'revoked'")||l.status!=='revoked'))];

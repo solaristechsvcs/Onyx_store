@@ -19,13 +19,15 @@ if(!names.has('discord_id'))await db.query('ALTER TABLE users ADD COLUMN discord
 await db.query('ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL');
 await db.query('CREATE TABLE IF NOT EXISTS sessions (token_hash CHAR(64) PRIMARY KEY,user_id BIGINT UNSIGNED NOT NULL,expires_at DATETIME NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)');
 // Additive, repeatable catalog upgrades; existing product/category data is retained.
-for(const [table,columns] of Object.entries({products:{image_path:'VARCHAR(255) NULL',revision:'INT NOT NULL DEFAULT 1'},categories:{revision:'INT NOT NULL DEFAULT 1'},licenses:{license_secret:'TEXT NULL',issuance_id:'VARCHAR(100) NULL',revision:'INT NOT NULL DEFAULT 1'}})){
+for(const [table,columns] of Object.entries({products:{image_path:'VARCHAR(255) NULL',revision:'INT NOT NULL DEFAULT 1'},categories:{revision:'INT NOT NULL DEFAULT 1'},licenses:{license_secret:'TEXT NULL',issuance_id:'VARCHAR(100) NULL',revision:'INT NOT NULL DEFAULT 1'},orders:{payment_mode:'VARCHAR(8) NULL',checkout_request_id:'CHAR(36) NULL',cart_hash:'CHAR(64) NULL',checkout_url:'TEXT NULL',provider_capture_id:'VARCHAR(191) NULL',payment_state:"VARCHAR(32) NOT NULL DEFAULT 'pending'",payment_refunded_cents:'INT UNSIGNED NOT NULL DEFAULT 0',paid_at:'DATETIME NULL'},order_items:{product_name:'VARCHAR(180) NULL',product_slug:'VARCHAR(190) NULL',is_digital:'BOOLEAN NULL',activation_limit:'INT UNSIGNED NULL',license_duration_days:'INT UNSIGNED NULL'}})){
  const [existing]=await db.query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',[table]);
  const present=new Set(existing.map(c=>c.COLUMN_NAME));
  for(const [column,definition] of Object.entries(columns))if(!present.has(column))await db.query('ALTER TABLE '+table+' ADD COLUMN '+column+' '+definition);
 }
 const [licenseIndexes]=await db.query("SHOW INDEX FROM licenses WHERE Key_name='unique_license_issuance'");
 if(!licenseIndexes.length)await db.query('ALTER TABLE licenses ADD UNIQUE KEY unique_license_issuance(issuance_id)');
+for(const [table,index,definition] of [['orders','unique_checkout_request','UNIQUE KEY unique_checkout_request(checkout_request_id)'],['orders','unique_provider_capture','UNIQUE KEY unique_provider_capture(provider,provider_capture_id)']]){const [indexes]=await db.query('SHOW INDEX FROM '+table+' WHERE Key_name=?',[index]);if(!indexes.length)await db.query('ALTER TABLE '+table+' ADD '+definition);}
+await db.query('CREATE TABLE IF NOT EXISTS payment_events (provider VARCHAR(20) NOT NULL,event_id VARCHAR(191) NOT NULL,event_type VARCHAR(150) NOT NULL,order_id BIGINT UNSIGNED NOT NULL,processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(provider,event_id),FOREIGN KEY(order_id) REFERENCES orders(id))');
 await db.query('CREATE TABLE IF NOT EXISTS oauth_states (state_hash CHAR(64) PRIMARY KEY,expires_at DATETIME NOT NULL)');
 }
 if(require.main===module)migrate().then(()=>{console.log('MySQL schema ready');return db.end()}).catch(e=>{console.error(e);process.exitCode=1;return db.end()});

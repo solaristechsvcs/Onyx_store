@@ -8,11 +8,11 @@ Weblutions-inspired independent digital storefront built for Wisp/Pterodactyl-co
 - Direct product pages at `/products/:slug`, with description, price, currency, digital/license metadata, and add-to-cart action. Uploaded product images appear on cards and product detail pages, with a decorative fallback.
 - `/login` and `/register` submit to the existing account APIs. Registration requires a display name, email, and password of at least 12 characters. `/account` displays account details; navigation includes sign out and a Staff Panel link for staff/admin/owner roles. Existing server-side staff API authorization remains enforced.
 - Discord login uses the existing OAuth endpoints and redirects home on success. It requires configured credentials and a verified Discord email. Linking Discord to an existing site account is not supported. Provider errors currently use the existing server error responses.
-- `/cart` stores only product slugs and quantities in this browser, supports quantities 1–99 and removal, re-fetches product details/prices, groups subtotals by currency, and marks unavailable items. Browser storage is shared by accounts on that browser and is not synchronized across devices. No order is created.
+- `/cart` stores only product slugs and quantities in this browser, supports quantities 1–99 and removal, re-fetches product details/prices, groups subtotals by currency, and marks unavailable items. Browser storage is shared by accounts on that browser and is not synchronized across devices. Signed-in customers can check out with configured Stripe/PayPal providers or claim eligible free digital orders. Orders are created only through server-side checkout.
 - Loading, empty, failure/retry states, labeled forms, keyboard focus styles, and mobile layouts. Dynamic catalog/account content is escaped. All frontend scripts/styles are external to retain Helmet's content security policy, including the existing Staff Panel.
 
 ## Not implemented / not verified
-Checkout is deliberately disabled. There is no verified payment integration, payment webhook, purchase flow, tax/shipping calculation, or private digital-file delivery. Order history, customer downloads, subscriptions, coupons, password reset, email verification, and Discord account linking remain future work. The license system supports manual grants, customer key management and automatic issuance for database orders recorded as paid; payment verification is not implemented.
+Stripe and PayPal hosted checkout, verified webhook handling, customer order history and admin order inspection are implemented. Payments remain disabled by default until credentials and webhook endpoints are configured in local config.js. Actual provider Sandbox/live transactions and Wisp/MySQL deployment remain unverified. Physical checkout, tax/shipping calculation, private product downloads, subscriptions, coupons, password reset, email verification and Discord account linking remain unimplemented. See [payment setup and verification](docs/PAYMENTS.md).
 
 Automated browser-logic tests use mocked API responses; they do not prove live MySQL, Discord OAuth, session cookies, Wisp deployment, or visual browser behavior. Validate these on the configured installation before production use. No sample products or fabricated inventory are inserted.
 
@@ -64,7 +64,7 @@ Catalog upgrades are additive and repeatable: `products.image_path`, `products.r
 
 Tests exercise real Express HTTP routes with simulated MySQL query results, validation, role authorization, transactional commit/rollback decisions, concurrency conflicts, deletion protections and image upload limits. Browser QA covers product creation/publishing, subcategory creation and a 390-pixel mobile layout using local-only fixture data. The fixture is not deployed and inserts no production sample products. Live MySQL/foreign-key behavior and deployment still require verification.
 
-Listing management does not implement payment checkout, order processing, private digital-file upload/delivery, inventory/shipping, subscriptions, coupons or private download fulfillment. These remain separate features.
+Listing management does not implement private digital-file delivery, inventory/shipping, subscriptions, coupons or tax calculation. Payment checkout and order/license fulfillment are provided by the payment modules; see docs/PAYMENTS.md.
 
 ## License System
 Admins and owners can open **Staff Panel → License System** to:
@@ -83,7 +83,7 @@ Startup applies additive, repeatable license upgrades: `license_secret`, `issuan
 ### Recorded paid orders
 A reconciliation worker runs on startup and every 60 seconds, processing up to 50 outstanding orders per pass. It locks each order and issues one license per digital order-item unit, using product defaults at issuance. Existing store grants for that order item are counted, including legacy grants, so retries do not duplicate licenses. Refunded/cancelled orders revoke associated store licenses and remove activations. Already revoked grants are not automatically reinstated if the order later returns to paid.
 
-The worker trusts the database order status. **This is not payment-provider verification.** Checkout remains disabled; no code in this release accepts payment or marks a pending order paid. A future verified payment handler can invoke `createService(db).fulfillOrder(orderId)` after recording payment. An admin-only reconciliation endpoint is available at `POST /api/staff/license-orders/:id/fulfill`; pending orders are rejected. Manual grants do not create orders or fake purchases. Order item quantity is limited to 1–1000 for license issuance.
+The license worker trusts recorded order status. The Stripe/PayPal payment service verifies provider state before recording paid and invokes `createService(db).fulfillOrder(orderId)`. An admin-only reconciliation endpoint is available at `POST /api/staff/license-orders/:id/fulfill`; pending orders are rejected. Manual grants do not create orders or fake purchases. Order item quantity is limited to 1–1000 for license issuance.
 
 ### Product integration
 Existing endpoints remain under `/api/v1/licenses`, authenticated with an active bearer API token:
@@ -96,5 +96,10 @@ Revoked/suspended/expired keys, replaced keys and keys tied to non-paid orders f
 
 ### Validation limits
 Automated tests cover cryptography, owned/unowned access, revocation, expiry, rotation, old-key invalidation, activation limits, API scope/disable behavior, manual retry safety, paid-order retry safety, refunds, transactions and migrations. They use actual Express HTTP routes with a transactional SQL-response fixture, not a live MySQL server. Browser QA verifies manual assignment, setting changes, customer reveal/rotation, and a 390-pixel mobile layout with disposable local data. Live MySQL, Wisp migration and production integrations remain unverified. No real users, orders or licenses were modified during development.
+
+
+
+## Payment configuration
+Enable Stripe, PayPal or both through the `payments` block in local `config.js`. The existing file is preserved by updates; copy the new block from `config.example.js`. Configure matching test/live credentials and the provider webhook registrations, then restart Wisp. Customers choose from configured providers in the cart. Free digital orders are optional. See [the complete setup guide](docs/PAYMENTS.md) for credential fields, event subscriptions, limits, refunds, testing and deployment requirements.
 
 

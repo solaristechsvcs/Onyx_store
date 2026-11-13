@@ -8,7 +8,7 @@ async function page(path,{saved='[]',user=null,products=[],failure=false}={}){
   const node=id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',textContent:'',value:id==='sort'?'new':'',addEventListener(){}});return nodes.get(id);};
   const calls=[];
   const context=vm.createContext({document:{getElementById:node,title:''},location:{pathname:path,search:'',assign(){},replace(){}},localStorage:{getItem:()=>saved,setItem:(k,v)=>calls.push([k,v])},URLSearchParams,Intl,FormData,setTimeout:()=>0,clearTimeout(){},fetch:async url=>{calls.push(url);if(failure)throw Error('Offline');let data=url.endsWith('/me')?{user}:url.endsWith('/categories')?[]:url==='/api/store/products'?products:products.find(p=>url.endsWith('/'+p.slug));return {ok:!!data,json:async()=>data||{error:'Product not found'}};}});
-  vm.runInContext(source,context);
+  vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../public/payments.js'),'utf8')+'\n'+source,context);
   for(let i=0;i<15;i++)await Promise.resolve();
   return {context,nodes,calls,html:()=>node('main').innerHTML};
 }

@@ -22,8 +22,27 @@ module.exports = {
     clientId: '',
     clientSecret: ''
   },
+  payments: {
+    enabled: false, // Set true after configuring providers and verified webhook endpoints.
+    mode: 'test', // 'test' uses Stripe test keys and PayPal Sandbox; switch to 'live' together.
+    providers: ['stripe', 'paypal'], // Use ['stripe'], ['paypal'], or both.
+    defaultProvider: 'stripe',
+    allowFreeOrders: true,
+    maxTotalCents: 99999999,
+    stripe: {
+      secretKey: '',
+      webhookSecret: '' // Signing secret for /api/payments/webhooks/stripe.
+    },
+    paypal: {
+      clientId: '',
+      clientSecret: '',
+      webhookId: '', // Webhook ID for /api/payments/webhooks/paypal.
+      merchantId: '' // Optional extra check against your PayPal merchant ID.
+    }
+  },
   session: {
     secret: 'REPLACE_WITH_A_LONG_RANDOM_SECRET',
     secureCookies: false
   }
 };
+

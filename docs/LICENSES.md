@@ -28,11 +28,13 @@ Deactivate with `POST /api/v1/licenses/deactivate` and JSON containing key and i
 
 Manual customer grants are available to admins and owners in the Staff Panel. External provisioning can use `POST /api/v1/licenses/issue` with productId and optional userId using an issue-scoped token. It returns the generated key, activation limit and expiry. Repeating external issue calls creates separate licenses; it does not claim payment occurred. For retry-safe customer grants, use the staff assignment endpoint with a stable UUID requestId.
 
-Store purchase issuance is reconciled from existing database orders recorded as paid. One license is created per digital order-item unit. Reconciliation is transactional and retry-safe. A future payment integration must verify provider notifications before marking an order paid and should invoke `createService(db).fulfillOrder(orderId)` after committing the payment result. The worker also runs every minute. No payment provider, checkout or paid-order creation endpoint is included.
+Store purchase issuance is reconciled from existing database orders recorded as paid. One license is created per digital order-item unit. Reconciliation is transactional and retry-safe. The configured Stripe/PayPal payment service verifies provider state, records payment and invokes `createService(db).fulfillOrder(orderId)`. The license worker also runs every minute. Checkout snapshots preserve licensing defaults even if product settings change before payment. See [payment setup](PAYMENTS.md).
 
 Refunded/cancelled order licenses are rejected by the validation API immediately on subsequent requests; background reconciliation also revokes them and clears activations. Returning an order to paid does not automatically restore previously revoked keys. An admin can explicitly reactivate a paid-order license if appropriate.
 
 ## Key lifecycle and recovery
+
+Test-order keys are accepted only by the matching test-mode license API, and are rejected after switching the license API to live mode. Manual grants and legacy orders without a mode retain their existing behavior.
 
 Customer `/licenses` lists only that account's grants. Active customers may reveal/copy a key, generate a random replacement and remove activations. They cannot choose weak custom keys or edit entitlement settings. Rotation invalidates the original key immediately and clears activation records. License metadata and mutation audit history are retained; there is no destructive license-delete endpoint.
 
