@@ -13,6 +13,11 @@ module.exports = {
     database: 'onyx_store',
     connectionLimit: 10
   },
+  updater: {
+    enabled: false, // Enable only when Wisp auto-restarts and startup runs node scripts/update.js
+    branch: 'main',
+    checkIntervalMinutes: 15
+  },
   discord: {
     clientId: '',
     clientSecret: ''
