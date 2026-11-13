@@ -23,6 +23,8 @@ app.use('/api/store',require('./src/store'));
 app.use('/api/accounts',require('./src/accounts'));
 app.use('/api/staff',require('./src/auth').currentUser,require('./src/staff'));
 app.use('/api/v1/licenses',require('./src/licenses'));
-app.get('/',(_req,res)=>res.type('html').send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Onyx Store</title></head><body><main><h1>Onyx Store</h1><p>Store API foundation is running. The customer storefront UI is under development.</p><p><a href="/api/store/products">Browse product API</a></p></main></body></html>'));
+app.use('/assets',express.static(path.join(__dirname,'public'),{index:false,dotfiles:'deny'}));
+app.get(['/', '/products', '/products/:slug', '/login', '/register', '/account', '/cart'],(_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 app.use((err,_req,res,_next)=>{console.error(err);res.status(500).json({error:'Internal server error'});});
 (async()=>{await migrate();const server=app.listen(port,host,()=>console.log('Onyx Store listening on '+host+':'+port));async function shutdown(){server.close(async()=>{await db.end();process.exit(0);});}process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);})().catch(e=>{console.error('Startup failed:',e);process.exit(1);});
+
