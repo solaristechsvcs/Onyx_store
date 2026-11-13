@@ -42,6 +42,8 @@ Once `[repair] Git checkout restored` appears, restore startup to `node scripts/
 
 
 ## Staff catalog management
+The staff interface uses the supplied charcoal/teal dashboard style: a fixed desktop sidebar, collapsible Catalog group, compact page header with working product search, teal metric cards/table headings, recent product and activity tables, and quick links. The dashboard shows actual catalog/account totals rather than fabricated sales, income or visitor analytics. Activity remains admin/owner-only. Navigation and columns adapt to smaller screens; product/category editors retain existing validation and permissions.
+
 Pages reference content-versioned JavaScript/CSS filenames to prevent a browser or CDN from mixing an updated page with an older cached script or stylesheet. HTML and legacy asset URLs use `Cache-Control: no-store`; versioned URLs can be cached immutably. Each running process retains matching page/asset bytes until restart, including while the updater changes files on disk. Restart Wisp after updating; if an old panel is still displayed, hard-refresh once (Ctrl+Shift+R).
 
 The staff workspace provides:
