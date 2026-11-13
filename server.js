@@ -12,6 +12,7 @@ const host=config.server?.host||'0.0.0.0';
 const db=require('./src/db');
 const migrate=require('./src/migrate');
 const app=express();
+require('./src/updateWatcher')(config);
 app.disable('x-powered-by');
 app.use(helmet());
 app.use(express.json({limit:'32kb'}));
