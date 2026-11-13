@@ -41,6 +41,8 @@ Once `[repair] Git checkout restored` appears, restore startup to `node scripts/
 
 
 ## Staff catalog management
+Pages reference content-versioned JavaScript/CSS filenames to prevent a browser or CDN from mixing an updated page with an older cached script or stylesheet. HTML and legacy asset URLs use `Cache-Control: no-store`; versioned URLs can be cached immutably. Each running process retains matching page/asset bytes until restart, including while the updater changes files on disk. Restart Wisp after updating; if an old panel is still displayed, hard-refresh once (Ctrl+Shift+R).
+
 The staff workspace provides:
 - Overview counts; searchable products with draft/published/category filters and 25-item pages.
 - Create/edit products with unique URL slugs, plain-text descriptions, exact integer-cent pricing, supported two-decimal currencies, digital-product flag, activation limit and optional license duration.
