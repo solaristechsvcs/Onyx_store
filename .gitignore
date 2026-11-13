@@ -6,3 +6,4 @@ config.js
 coverage/
 .onyx-recovery/
 .onyx-install-*/
+uploads/
