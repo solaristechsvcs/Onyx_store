@@ -2,6 +2,7 @@ const router=require('express').Router();
 const db=require('./db');
 const {staff,admin}=require('./auth');
 router.use(staff);
+router.use(require('./licenseRoutes').createRouters(db,require('./auth')).staff);
 router.use(require('./catalogAdmin').createRouter(db,{admin}));
 router.get('/users',async(req,res,next)=>{try{const [rows]=await db.query('SELECT id,email,display_name,role,created_at FROM users ORDER BY id DESC LIMIT 200');res.json(rows);}catch(e){next(e)}});
 router.patch('/users/:id/role',admin,async(req,res,next)=>{try{

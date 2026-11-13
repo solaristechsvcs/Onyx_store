@@ -12,7 +12,7 @@ Weblutions-inspired independent digital storefront built for Wisp/Pterodactyl-co
 - Loading, empty, failure/retry states, labeled forms, keyboard focus styles, and mobile layouts. Dynamic catalog/account content is escaped. All frontend scripts/styles are external to retain Helmet's content security policy, including the existing Staff Panel.
 
 ## Not implemented / not verified
-Checkout is deliberately disabled. There is no verified payment integration, payment webhook, purchase flow, tax/shipping calculation, or paid-order fulfillment. Order history, customer downloads, subscriptions, coupons, password reset, email verification, and Discord account linking remain future work. Existing license APIs and schema are preserved; the storefront does not expose license management or automatically issue licenses.
+Checkout is deliberately disabled. There is no verified payment integration, payment webhook, purchase flow, tax/shipping calculation, or private digital-file delivery. Order history, customer downloads, subscriptions, coupons, password reset, email verification, and Discord account linking remain future work. The license system supports manual grants, customer key management and automatic issuance for database orders recorded as paid; payment verification is not implemented.
 
 Automated browser-logic tests use mocked API responses; they do not prove live MySQL, Discord OAuth, session cookies, Wisp deployment, or visual browser behavior. Validate these on the configured installation before production use. No sample products or fabricated inventory are inserted.
 
@@ -23,7 +23,7 @@ Automated browser-logic tests use mocked API responses; they do not prove live M
 
 ## Wisp setup
 1. Copy `config.example.js` to local `config.js`; set MySQL credentials, Wisp-assigned port, and the public URL. Keep `config.js` out of Git.
-2. Install dependencies and start with `npm start`. Existing startup migrations run against MySQL. Startup adds missing product image/revision fields and category revision fields automatically. No new package dependencies are required.
+2. Install dependencies and start with `npm start`. Existing startup migrations run against MySQL. Startup adds missing catalog and license fields automatically and creates a local .onyx-license-key encryption file. No new package dependencies are required.
 3. Set Discord's redirect URL to `https://YOUR-DOMAIN/api/accounts/discord/callback` and configure `discord.clientId` and `discord.clientSecret`. Set `server.publicUrl` to the exact external origin; cookie-authenticated writes validate that origin. Use secure cookies on HTTPS.
 4. Keep the startup command `node scripts/update.js && npm install && node server.js`. The startup updater always checks for updates. With `updater.enabled: true`, the running app also checks immediately and at the configured interval, applies safe fast-forward updates, and exits after an update for Wisp to restart it. Wisp automatic restart must be enabled. The updater preserves ignored configuration, refuses tracked edits/diverged branches, and reads the configured branch (environment overrides still take precedence).
 5. Sign in as an admin or owner and open `/staff`. Create categories, add products, review the preview, then check Published and save. Staff have read-only catalog access. Existing owner bootstrap and role protections are retained.
@@ -55,7 +55,7 @@ The staff workspace provides:
 - Staff may read all listings/categories, including drafts. Admins/owners may create, edit, publish, unpublish, upload and delete. Catalog mutation authorization is enforced on the server.
 - Revision checks reject stale edits. Product fields, category assignments and audit writes commit together. Category-graph changes are locked during transactions.
 - Draft-only product deletion. MySQL foreign keys protect products referenced by order items or licenses. Categories must have no assigned products or children before deletion. Prefer unpublishing products you want to retain.
-- Existing user-role management, with protected owners/self and owner-only administrator changes; a recent 100-entry catalog/role activity log for admins/owners.
+- Existing user-role management, with protected owners/self and owner-only administrator changes; a recent 100-entry catalog/role/license activity log for admins/owners.
 - Unsaved-edit prompts, validation errors, session/access messages, loading/retry/empty states and responsive desktop/mobile layouts.
 
 Images are stored under `uploads/product-images/`, outside Git. Preserve and back up this folder along with MySQL and `config.js` when moving/reinstalling Wisp. Git updates preserve it. The Node process needs write access. Reverse proxies must allow 5 MB uploads. Uploaded images are public even for drafts; private downloadable products must not be uploaded here. Removing an image from a listing does not delete its file; media cleanup and galleries are not implemented.
@@ -64,5 +64,37 @@ Catalog upgrades are additive and repeatable: `products.image_path`, `products.r
 
 Tests exercise real Express HTTP routes with simulated MySQL query results, validation, role authorization, transactional commit/rollback decisions, concurrency conflicts, deletion protections and image upload limits. Browser QA covers product creation/publishing, subcategory creation and a 390-pixel mobile layout using local-only fixture data. The fixture is not deployed and inserts no production sample products. Live MySQL/foreign-key behavior and deployment still require verification.
 
-Listing management does not implement payment checkout, order processing, private digital-file upload/delivery, inventory/shipping, subscriptions, coupons or automatic license issuance. These remain separate features.
+Listing management does not implement payment checkout, order processing, private digital-file upload/delivery, inventory/shipping, subscriptions, coupons or private download fulfillment. These remain separate features.
+
+## License System
+Admins and owners can open **Staff Panel → License System** to:
+- Search/filter/paginate licenses by product, customer email, key prefix and status.
+- Assign an existing digital product to an existing account manually, using product activation/expiry defaults or explicit overrides. Assignment retries with the same request ID return the original grant.
+- Reveal/copy a key, generate a replacement, suspend/revoke/reactivate a license, change expiry/activation limits, reset activations or deactivate one installation. Stale revisions return a conflict rather than overwriting another update.
+- Create scoped API tokens (validate or issue), and enable/disable API clients. API tokens are displayed once and stored only as hashes.
+- Review audited license actions. Raw keys and API tokens are never included in audit records.
+
+Customers use **My licenses** or `/licenses`. The panel lists products assigned to their account, including paid-order grants and externally issued licenses with a user ID. Customers can reveal/copy active keys, generate secure random replacement keys and manage activations. Customers cannot change their product, ownership, status, expiry or activation limit. Every request checks account ownership on the server. Keys are not stored in browser local storage. Rotating a key immediately invalidates the old key and clears activations. Existing installations must be reconfigured and activated with the replacement.
+
+The license database retains a SHA-256 key hash for lookup and an AES-256-GCM encrypted key for authorized reveal. Startup generates a random 32-byte master key in **`.onyx-license-key`** beside `config.js`, with owner-only permissions on hosts supporting file modes. The file is excluded from Git and preserved by the updater and repair script. **Back up this file with the database, config.js and uploads. Do not delete, publish, regenerate or lose it.** If encrypted licenses exist but the file is missing, startup stops and requests restoration. Replacing the file prevents existing encrypted keys from being revealed. Legacy hash-only licenses remain valid; use rotation to generate a revealable replacement.
+
+Startup applies additive, repeatable license upgrades: `license_secret`, `issuance_id`, `revision`, and a unique issuance index. No data is dropped. The MySQL user needs ALTER permission, and Node needs permission to create the master-key file.
+
+### Recorded paid orders
+A reconciliation worker runs on startup and every 60 seconds, processing up to 50 outstanding orders per pass. It locks each order and issues one license per digital order-item unit, using product defaults at issuance. Existing store grants for that order item are counted, including legacy grants, so retries do not duplicate licenses. Refunded/cancelled orders revoke associated store licenses and remove activations. Already revoked grants are not automatically reinstated if the order later returns to paid.
+
+The worker trusts the database order status. **This is not payment-provider verification.** Checkout remains disabled; no code in this release accepts payment or marks a pending order paid. A future verified payment handler can invoke `createService(db).fulfillOrder(orderId)` after recording payment. An admin-only reconciliation endpoint is available at `POST /api/staff/license-orders/:id/fulfill`; pending orders are rejected. Manual grants do not create orders or fake purchases. Order item quantity is limited to 1–1000 for license issuance.
+
+### Product integration
+Existing endpoints remain under `/api/v1/licenses`, authenticated with an active bearer API token:
+- `POST /validate`: key, optional productId. Pass productId and check the response productId to bind the key to the intended product.
+- `POST /activate`: key, installationId (8–200 characters), optional productId. Idempotent for the same installation; enforces activation limit.
+- `POST /deactivate`: key and installationId.
+- `POST /issue`: productId and optional userId; requires issue scope. Creates an external license, not a paid purchase.
+
+Revoked/suspended/expired keys, replaced keys and keys tied to non-paid orders fail validation/activation. Installation IDs are hashed; only installation record IDs and creation times appear in the UI. Keep API tokens in trusted server integrations, never public frontend code or distributed client scripts. Products must call the API to enforce licensing; this release does not package enforcement code inside downloadable products. See [license integration notes](docs/LICENSES.md).
+
+### Validation limits
+Automated tests cover cryptography, owned/unowned access, revocation, expiry, rotation, old-key invalidation, activation limits, API scope/disable behavior, manual retry safety, paid-order retry safety, refunds, transactions and migrations. They use actual Express HTTP routes with a transactional SQL-response fixture, not a live MySQL server. Browser QA verifies manual assignment, setting changes, customer reveal/rotation, and a 390-pixel mobile layout with disposable local data. Live MySQL, Wisp migration and production integrations remain unverified. No real users, orders or licenses were modified during development.
+
 

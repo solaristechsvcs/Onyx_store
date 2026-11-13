@@ -16,7 +16,7 @@ function repair(){
   const files=git(['ls-files','-z'],{cwd:checkout}).split('\0').filter(Boolean);
   // Never adopt a checkout containing deployment secrets or dependencies.
   for(const file of files){
-    if(file.split('/').some(part=>['config.js','.env','node_modules','.git','.onyx-recovery'].includes(part))||file.startsWith('.onyx-install-'))throw Error('Refusing protected repository path: '+file);
+    if(file.split('/').some(part=>['config.js','.onyx-license-key','.env','node_modules','.git','.onyx-recovery'].includes(part))||file.startsWith('.onyx-install-'))throw Error('Refusing protected repository path: '+file);
     const source=path.join(checkout,file);
     if(!fs.lstatSync(source).isFile())throw Error('Refusing non-regular repository file: '+file);
     const target=path.join(root,file);

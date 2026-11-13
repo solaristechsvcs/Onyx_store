@@ -21,12 +21,14 @@ app.use((req,res,next)=>{if(['POST','PATCH','PUT','DELETE'].includes(req.method)
 app.get('/staff',webAssets.page('staff.html'));
 app.get('/health',async(_req,res)=>{try{await db.query('SELECT 1');res.json({ok:true,database:'connected'});}catch{res.status(503).json({ok:false,database:'unavailable'});}});
 app.use('/api/store',require('./src/store'));
+const licenseRouters=require('./src/licenseRoutes').createRouters(db,require('./src/auth'));
+app.use('/api/accounts/licenses',require('./src/auth').currentUser,licenseRouters.customer);
 app.use('/api/accounts',require('./src/accounts'));
 app.use('/api/staff',require('./src/auth').currentUser,require('./src/staff'));
 app.use('/api/v1/licenses',require('./src/licenses'));
 app.use('/media/products',express.static(require('./src/catalogAdmin').imageRoot,{index:false,dotfiles:'deny',maxAge:'30d',immutable:true,setHeaders(res){res.setHeader('X-Content-Type-Options','nosniff');}}));
 app.use('/assets',webAssets.router);
-app.get(['/', '/products', '/products/:slug', '/login', '/register', '/account', '/cart'],webAssets.page('index.html'));
+app.get(['/', '/products', '/products/:slug', '/login', '/register', '/account', '/cart', '/licenses'],webAssets.page('index.html'));
 app.use((err,_req,res,_next)=>{if(err.type==='entity.too.large')return res.status(413).json({error:'Upload or request is too large. Product images must be at most 5 MB.'});if(err.type==='entity.parse.failed')return res.status(400).json({error:'Invalid JSON request'});console.error(err);res.status(500).json({error:'Internal server error'});});
-(async()=>{await migrate();const server=app.listen(port,host,()=>console.log('Onyx Store listening on '+host+':'+port));async function shutdown(){server.close(async()=>{await db.end();process.exit(0);});}process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);})().catch(e=>{console.error('Startup failed:',e);process.exit(1);});
+(async()=>{await migrate();await require('./src/licenseKeys').initialize(db);const stopLicenseWorker=require('./src/licenseFulfillment')(db);const server=app.listen(port,host,()=>console.log('Onyx Store listening on '+host+':'+port));async function shutdown(){stopLicenseWorker();server.close(async()=>{await db.end();process.exit(0);});}process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);})().catch(e=>{console.error('Startup failed:',e);process.exit(1);});
 

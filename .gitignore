@@ -7,3 +7,4 @@ coverage/
 .onyx-recovery/
 .onyx-install-*/
 uploads/
+.onyx-license-key

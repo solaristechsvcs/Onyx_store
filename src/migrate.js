@@ -19,11 +19,13 @@ if(!names.has('discord_id'))await db.query('ALTER TABLE users ADD COLUMN discord
 await db.query('ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL');
 await db.query('CREATE TABLE IF NOT EXISTS sessions (token_hash CHAR(64) PRIMARY KEY,user_id BIGINT UNSIGNED NOT NULL,expires_at DATETIME NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)');
 // Additive, repeatable catalog upgrades; existing product/category data is retained.
-for(const [table,columns] of Object.entries({products:{image_path:'VARCHAR(255) NULL',revision:'INT NOT NULL DEFAULT 1'},categories:{revision:'INT NOT NULL DEFAULT 1'}})){
+for(const [table,columns] of Object.entries({products:{image_path:'VARCHAR(255) NULL',revision:'INT NOT NULL DEFAULT 1'},categories:{revision:'INT NOT NULL DEFAULT 1'},licenses:{license_secret:'TEXT NULL',issuance_id:'VARCHAR(100) NULL',revision:'INT NOT NULL DEFAULT 1'}})){
  const [existing]=await db.query('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',[table]);
  const present=new Set(existing.map(c=>c.COLUMN_NAME));
  for(const [column,definition] of Object.entries(columns))if(!present.has(column))await db.query('ALTER TABLE '+table+' ADD COLUMN '+column+' '+definition);
 }
+const [licenseIndexes]=await db.query("SHOW INDEX FROM licenses WHERE Key_name='unique_license_issuance'");
+if(!licenseIndexes.length)await db.query('ALTER TABLE licenses ADD UNIQUE KEY unique_license_issuance(issuance_id)');
 await db.query('CREATE TABLE IF NOT EXISTS oauth_states (state_hash CHAR(64) PRIMARY KEY,expires_at DATETIME NOT NULL)');
 }
 if(require.main===module)migrate().then(()=>{console.log('MySQL schema ready');return db.end()}).catch(e=>{console.error(e);process.exitCode=1;return db.end()});
