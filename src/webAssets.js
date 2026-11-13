@@ -10,7 +10,7 @@ const express=require('express');
 function createWebAssets(publicRoot){
  const router=express.Router();
  const urls=new Map();
- for(const filename of ['store.css','store.js','staff.css','staff.js']){
+ for(const filename of ['store.css','store.js','store-scene.svg','staff.css','staff.js']){
   const bytes=fs.readFileSync(path.join(publicRoot,filename));
   const digest=crypto.createHash('sha256').update(bytes).digest('hex').slice(0,16);
   const ext=path.extname(filename);

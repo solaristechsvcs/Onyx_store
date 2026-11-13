@@ -3,6 +3,7 @@
 Weblutions-inspired independent digital storefront built for Wisp/Pterodactyl-compatible Node.js hosting and external MySQL.
 
 ## Implemented storefront
+- Synergy-inspired storefront styling: an original dark geometric SVG backdrop, red lighting, purple accents, transparent navigation, an Onyx hero graphic, and matching catalog/detail/account/cart layouts. No reference-site logos, statistics, testimonials or raster assets are copied. Homepage product search opens the catalog with the search text preserved. The background is local and content-versioned with the other assets; no additional external image/font services are required.
 - Responsive homepage and `/products` catalog using published MySQL products; visible category/subcategory links, search within the loaded collection, and newest/name sorting. The API currently returns at most 100 products; pagination and descendant-inclusive category filtering are not implemented. Selecting a category shows products assigned directly to it.
 - Direct product pages at `/products/:slug`, with description, price, currency, digital/license metadata, and add-to-cart action. Uploaded product images appear on cards and product detail pages, with a decorative fallback.
 - `/login` and `/register` submit to the existing account APIs. Registration requires a display name, email, and password of at least 12 characters. `/account` displays account details; navigation includes sign out and a Staff Panel link for staff/admin/owner roles. Existing server-side staff API authorization remains enforced.
