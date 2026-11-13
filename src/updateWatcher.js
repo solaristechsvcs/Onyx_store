@@ -13,6 +13,12 @@ let running=false;
 const check=async()=>{if(running)return;running=true;try{
 const branch=config.updater.branch||'main';
 if(!/^[a-zA-Z0-9._/-]+$/.test(branch)||branch.includes('..'))throw Error('Invalid branch');
+const currentBranch=await git(['branch','--show-current']);
+if(currentBranch!==branch)return;
+const dirty=await git(['status','--porcelain','--untracked-files=no']);
+if(dirty){console.warn('[updater] Tracked files modified; auto-restart skipped');return;}
+const origin=await git(['remote','get-url','origin']);
+if(!/^(https:\/\/github\.com\/solaristechsvcs\/Onyx_store(?:\.git)?|git@github\.com:solaristechsvcs\/Onyx_store(?:\.git)?)$/i.test(origin))return;
 const local=await git(['rev-parse','HEAD']);
 const remote=await git(['ls-remote','origin','refs/heads/'+branch]);
 const sha=remote.split(/\s+/)[0];
